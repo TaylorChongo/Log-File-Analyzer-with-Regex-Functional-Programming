@@ -37,22 +37,25 @@ EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
 def is_valid_ip(text: str) -> bool:
+    """Return True if the whole text is a valid IP address, e.g. 192.168.1.10."""
     # fullmatch: the WHOLE text must match, not just the beginning.
     return IP_PATTERN.fullmatch(text) is not None
 
 
 def is_valid_url(text: str) -> bool:
+    """Return True if the whole text is a valid http/https URL."""
     return URL_PATTERN.fullmatch(text) is not None
 
 
 def is_valid_email(text: str) -> bool:
+    """Return True if the whole text is a valid email address."""
     return EMAIL_PATTERN.fullmatch(text) is not None
 
 
 # --- Searching -----------------------------------------------------------
 
 def find_first_ip(text: str) -> str | None:
-    # search: look for the first IP ANYWHERE in the text.
+    """Return the first IP address found anywhere in the text, or None."""
     match = IP_PATTERN.search(text)
     if match is None:
         return None
@@ -60,17 +63,17 @@ def find_first_ip(text: str) -> str | None:
 
 
 def find_ips(text: str) -> list[str]:
-    # findall: return EVERY IP found in the text, as a list.
+    """Return every IP address found in the text, as a list."""
     return IP_PATTERN.findall(text)
 
 
 # --- Cleaning with re.sub ------------------------------------------------
 
 def strip_query_string(url: str) -> str:
-    # Remove "?" and everything after it: /products/107?ref=home -> /products/107
+    """Remove "?" and everything after it: /products/107?ref=home -> /products/107."""
     return re.sub(r"\?.*", "", url)
 
 
 def mask_ip(ip: str) -> str:
-    # Hide the last part of an IP for privacy: 192.168.1.16 -> 192.168.1.xxx
+    """Hide the last part of an IP for privacy: 192.168.1.16 -> 192.168.1.xxx."""
     return re.sub(r"\.\d{1,3}$", ".xxx", ip)
