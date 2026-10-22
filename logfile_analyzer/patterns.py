@@ -17,3 +17,60 @@ LOG_PATTERN = re.compile(
     r'"(?P<referrer>[^"]*)" '                                # "-" or "https://www.google.com/"
     r'"(?P<user_agent>[^"]*)"'                               # "Mozilla/5.0 ..."
 )
+
+# --- Validation patterns -------------------------------------------------
+
+# One part of an IP address: a number from 0 to 255.
+#   25[0-5]   -> 250-255
+#   2[0-4]\d  -> 200-249
+#   1?\d?\d   -> 0-199
+OCTET = r"(?:25[0-5]|2[0-4]\d|1?\d?\d)"
+
+# Four octets separated by dots: 192.168.1.10
+IP_PATTERN = re.compile(OCTET + r"(?:\." + OCTET + r"){3}")
+
+# http:// or https://, a domain name, then an optional path: https://example.com/about
+URL_PATTERN = re.compile(r"https?://[\w.-]+(?:/\S*)?")
+
+# name@domain.ext, where the domain has at least one dot: user.name@mail.example.com
+EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+
+
+def is_valid_ip(text: str) -> bool:
+    # fullmatch: the WHOLE text must match, not just the beginning.
+    return IP_PATTERN.fullmatch(text) is not None
+
+
+def is_valid_url(text: str) -> bool:
+    return URL_PATTERN.fullmatch(text) is not None
+
+
+def is_valid_email(text: str) -> bool:
+    return EMAIL_PATTERN.fullmatch(text) is not None
+
+
+# --- Searching -----------------------------------------------------------
+
+def find_first_ip(text: str) -> str | None:
+    # search: look for the first IP ANYWHERE in the text.
+    match = IP_PATTERN.search(text)
+    if match is None:
+        return None
+    return match.group()
+
+
+def find_ips(text: str) -> list[str]:
+    # findall: return EVERY IP found in the text, as a list.
+    return IP_PATTERN.findall(text)
+
+
+# --- Cleaning with re.sub ------------------------------------------------
+
+def strip_query_string(url: str) -> str:
+    # Remove "?" and everything after it: /products/107?ref=home -> /products/107
+    return re.sub(r"\?.*", "", url)
+
+
+def mask_ip(ip: str) -> str:
+    # Hide the last part of an IP for privacy: 192.168.1.16 -> 192.168.1.xxx
+    return re.sub(r"\.\d{1,3}$", ".xxx", ip)
