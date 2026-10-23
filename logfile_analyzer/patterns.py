@@ -1,6 +1,7 @@
 """Compiled regex patterns for log formats and validation (IP, URL, email)."""
 
 import re
+from functools import lru_cache
 
 # One line of an Apache/Nginx access log (Combined Log Format), for example:
 # 192.168.1.10 - - [21/Oct/2026:14:22:01 +0000] "GET /index.html HTTP/1.1" 200 5120 "-" "Mozilla/5.0"
@@ -69,6 +70,9 @@ def find_ips(text: str) -> list[str]:
 
 # --- Cleaning with re.sub ------------------------------------------------
 
+# lru_cache remembers results: the same URL appears many times in a log,
+# so after the first time the answer comes from the cache instead of the regex.
+@lru_cache(maxsize=None)
 def strip_query_string(url: str) -> str:
     """Remove "?" and everything after it: /products/107?ref=home -> /products/107."""
     return re.sub(r"\?.*", "", url)
