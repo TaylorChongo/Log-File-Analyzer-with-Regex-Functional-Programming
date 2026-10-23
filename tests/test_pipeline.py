@@ -1,12 +1,14 @@
 """Tests for the functional pipeline in logfile_analyzer.pipeline."""
 
 from logfile_analyzer.pipeline import (
+    count_by,
     has_method,
     has_status,
     is_error,
     is_not_found,
     is_post,
     parse_entries,
+    total_bytes,
 )
 from logfile_analyzer.readers import read_lines
 
@@ -53,3 +55,23 @@ def test_chained_pipeline(access_log):
     statuses = [entry["status"] for entry in not_found]
     assert len(statuses) > 0
     assert set(statuses) == {404}
+
+
+def test_total_bytes():
+    entries = [{"size": 100}, {"size": 250}, {"size": 0}]
+
+    assert total_bytes(entries) == 350
+    assert total_bytes([]) == 0
+
+
+def test_count_by():
+    assert count_by(ENTRIES, "status") == {200: 1, 404: 1, 500: 1}
+    assert count_by(ENTRIES, "method") == {"GET": 2, "POST": 1}
+    assert count_by([], "status") == {}
+
+
+def test_count_by_on_real_log_file(access_log):
+    counts = count_by(parse_entries(read_lines(access_log)), "status")
+    number_of_entries = len(list(parse_entries(read_lines(access_log))))
+
+    assert sum(counts.values()) == number_of_entries
