@@ -4,7 +4,7 @@ import types
 
 import pytest
 
-from logfile_analyzer.readers import read_lines, read_many
+from logfile_analyzer.readers import BatchIterator, read_lines, read_many
 
 
 def test_read_lines_is_a_generator(sample_log):
@@ -41,3 +41,19 @@ def test_read_many_chains_files_in_order(tmp_path):
     second.write_text("b1\n", encoding="utf-8")
 
     assert list(read_many([first, second])) == ["a1", "a2", "b1"]
+
+
+def test_batch_iterator_splits_items_into_batches():
+    batches = list(BatchIterator([1, 2, 3, 4, 5], 2))
+
+    assert batches == [[1, 2], [3, 4], [5]]
+
+
+def test_batch_iterator_with_no_items():
+    assert list(BatchIterator([], 3)) == []
+
+
+def test_batch_iterator_works_with_a_generator(sample_log):
+    batches = list(BatchIterator(read_lines(sample_log), 3))
+
+    assert [len(batch) for batch in batches] == [3, 3, 2]
