@@ -1,5 +1,6 @@
 """Tests for the generators in logfile_analyzer.readers."""
 
+import tracemalloc
 import types
 
 import pytest
@@ -57,3 +58,34 @@ def test_batch_iterator_works_with_a_generator(sample_log):
     batches = list(BatchIterator(read_lines(sample_log), 3))
 
     assert [len(batch) for batch in batches] == [3, 3, 2]
+
+
+def peak_memory(function):
+    """Run function() and return the peak memory it used, in bytes."""
+    tracemalloc.start()
+    function()
+    _, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return peak
+
+
+def test_generator_memory_stays_flat_as_file_grows(access_log, tmp_path):
+    big_log = tmp_path / "big.log"
+    big_log.write_text(access_log.read_text(encoding="utf-8") * 20, encoding="utf-8")
+
+    def with_list(path):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            pass
+
+    def with_generator(path):
+        for line in read_lines(path):
+            pass
+
+    small_gen = peak_memory(lambda: with_generator(access_log))
+    big_gen = peak_memory(lambda: with_generator(big_log))
+    big_list = peak_memory(lambda: with_list(big_log))
+
+    # A 20x bigger file barely changes the generator's memory...
+    assert big_gen < 2 * small_gen
+    # ...while the list version needs far more.
+    assert big_gen * 10 < big_list
