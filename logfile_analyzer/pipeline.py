@@ -1,7 +1,9 @@
 """Functional pipeline: map/filter/reduce, partial filters, groupby/islice/takewhile."""
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
+from datetime import datetime
 from functools import partial, reduce
+from itertools import dropwhile, groupby, islice, takewhile
 
 from logfile_analyzer.parser import parse_line
 
@@ -56,3 +58,41 @@ def count_by(entries: Iterable[dict], key: str) -> dict:
 
     # Start with an empty dictionary and add each entry to it.
     return reduce(add_one, entries, {})
+
+
+# --- itertools: group, paginate, time range ------------------------------
+
+def group_by(entries: Iterable[dict], key_function: Callable) -> dict:
+    """Group entries by the value key_function returns, e.g. {200: [...], 404: [...]}."""
+    # groupby only groups items that are NEXT TO each other, so we sort first.
+    sorted_entries = sorted(entries, key=key_function)
+
+    groups = {}
+    for key, group in groupby(sorted_entries, key=key_function):
+        groups[key] = list(group)
+    return groups
+
+
+def group_by_status(entries: Iterable[dict]) -> dict:
+    """Group entries by status code: {200: [...], 404: [...]}."""
+    return group_by(entries, lambda entry: entry["status"])
+
+
+def group_by_hour(entries: Iterable[dict]) -> dict:
+    """Group entries by the hour of their timestamp: {0: [...], 1: [...], ...}."""
+    return group_by(entries, lambda entry: entry["timestamp"].hour)
+
+
+def paginate(entries: Iterable[dict], page: int, page_size: int) -> Iterator[dict]:
+    """Return one page of entries; pages start at 1."""
+    start = (page - 1) * page_size
+    # islice works like list[start:stop], but on any iterator, lazily.
+    return islice(entries, start, start + page_size)
+
+
+def entries_between(entries: Iterable[dict], start: datetime, end: datetime) -> Iterator[dict]:
+    """Return entries with start <= timestamp < end. Entries must be in time order."""
+    # dropwhile skips entries until the first one at or after start.
+    after_start = dropwhile(lambda entry: entry["timestamp"] < start, entries)
+    # takewhile stops at the first entry at or after end, without reading the rest.
+    return takewhile(lambda entry: entry["timestamp"] < end, after_start)

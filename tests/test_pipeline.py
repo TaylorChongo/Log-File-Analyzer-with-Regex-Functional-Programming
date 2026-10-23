@@ -1,12 +1,18 @@
 """Tests for the functional pipeline in logfile_analyzer.pipeline."""
 
+from datetime import datetime, timezone
+
 from logfile_analyzer.pipeline import (
     count_by,
+    entries_between,
+    group_by_hour,
+    group_by_status,
     has_method,
     has_status,
     is_error,
     is_not_found,
     is_post,
+    paginate,
     parse_entries,
     total_bytes,
 )
@@ -75,3 +81,46 @@ def test_count_by_on_real_log_file(access_log):
     number_of_entries = len(list(parse_entries(read_lines(access_log))))
 
     assert sum(counts.values()) == number_of_entries
+
+
+def at_hour(hour):
+    """Make an entry with a timestamp on 20 Oct 2026 at the given hour."""
+    return {"timestamp": datetime(2026, 10, 20, hour, 0, tzinfo=timezone.utc)}
+
+
+def test_group_by_status():
+    groups = group_by_status([GET_OK, GET_NOT_FOUND, GET_OK])
+
+    assert groups == {200: [GET_OK, GET_OK], 404: [GET_NOT_FOUND]}
+
+
+def test_group_by_hour():
+    groups = group_by_hour([at_hour(5), at_hour(1), at_hour(5)])
+
+    assert list(groups) == [1, 5]
+    assert len(groups[5]) == 2
+
+
+def test_group_by_hour_on_real_log_file(access_log):
+    groups = group_by_hour(parse_entries(read_lines(access_log)))
+
+    assert all(0 <= hour <= 23 for hour in groups)
+
+
+def test_paginate():
+    items = list(range(10))  # 0, 1, ..., 9
+
+    assert list(paginate(items, page=1, page_size=3)) == [0, 1, 2]
+    assert list(paginate(items, page=2, page_size=3)) == [3, 4, 5]
+    assert list(paginate(items, page=4, page_size=3)) == [9]
+    assert list(paginate(items, page=5, page_size=3)) == []
+
+
+def test_entries_between():
+    entries = [at_hour(hour) for hour in range(6)]  # hours 0 to 5, in order
+    start = datetime(2026, 10, 20, 2, 0, tzinfo=timezone.utc)
+    end = datetime(2026, 10, 20, 4, 0, tzinfo=timezone.utc)
+
+    selected = list(entries_between(entries, start, end))
+
+    assert selected == [at_hour(2), at_hour(3)]
